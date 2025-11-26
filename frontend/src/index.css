@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Asegurar que SweetAlert2 se muestre correctamente */
+.swal2-popup {
+    font-family: inherit !important;
+}
+
+.swal2-confirm, .swal2-cancel {
+    border-radius: 0.5rem !important;
+    font-weight: 500 !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.swal2-confirm:focus, .swal2-cancel:focus {
+    box-shadow: none !important;
+}
