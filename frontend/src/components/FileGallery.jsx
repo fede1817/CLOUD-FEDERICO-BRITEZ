@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
+const FileGallery = ({ refreshKey }) => {
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isSelecting, setIsSelecting] = useState(false);
+    const [videoThumbnails, setVideoThumbnails] = useState({});
+    const videoRefs = useRef({});
 
     const fetchFiles = async () => {
         try {
@@ -17,6 +19,8 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
             setFiles(Array.isArray(filesData) ? filesData : []);
             // Limpiar selección al actualizar
             setSelectedFiles([]);
+            // Limpiar thumbnails de videos
+            setVideoThumbnails({});
         } catch (error) {
             console.error('Error cargando archivos:', error);
             showErrorAlert('Error cargando los archivos');
@@ -47,6 +51,89 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
         });
     };
 
+    // Función mejorada para generar thumbnail de video
+    const generateVideoThumbnail = (videoElement, filename) => {
+        return new Promise((resolve) => {
+            // Configurar el video
+            videoElement.currentTime = 0; // Empezar desde el inicio
+            videoElement.muted = true;
+            videoElement.playsInline = true;
+            videoElement.crossOrigin = "anonymous"; // Importante para videos de otro dominio
+            
+            const handleCanPlay = () => {
+                // Esperar a que el video tenga datos suficientes
+                if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
+                    // Crear canvas para capturar el frame
+                    const canvas = document.createElement('canvas');
+                    
+                    // Limitar el tamaño máximo para no sobrecargar
+                    const maxWidth = 400;
+                    const maxHeight = 300;
+                    let width = videoElement.videoWidth;
+                    let height = videoElement.videoHeight;
+                    
+                    // Mantener proporción
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    try {
+                        ctx.drawImage(videoElement, 0, 0, width, height);
+                        
+                        // Convertir a data URL con calidad media
+                        const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        setVideoThumbnails(prev => ({
+                            ...prev,
+                            [filename]: thumbnailUrl
+                        }));
+                        
+                        resolve(thumbnailUrl);
+                    } catch (error) {
+                        console.error(`Error dibujando thumbnail: ${error.message}`);
+                        resolve(null);
+                    }
+                    
+                    // Limpiar event listeners
+                    videoElement.removeEventListener('canplay', handleCanPlay);
+                    videoElement.removeEventListener('error', handleError);
+                }
+            };
+            
+            const handleError = () => {
+                console.error(`Error cargando video para thumbnail: ${filename}`);
+                videoElement.removeEventListener('canplay', handleCanPlay);
+                videoElement.removeEventListener('error', handleError);
+                resolve(null);
+            };
+            
+            videoElement.addEventListener('canplay', handleCanPlay);
+            videoElement.addEventListener('error', handleError);
+            
+            // Timeout por si el video tarda demasiado
+            setTimeout(() => {
+                if (!videoThumbnails[filename]) {
+                    videoElement.removeEventListener('canplay', handleCanPlay);
+                    videoElement.removeEventListener('error', handleError);
+                    console.warn(`Timeout generando thumbnail para: ${filename}`);
+                    resolve(null);
+                }
+            }, 5000); // 5 segundos timeout
+            
+            // Intentar cargar el video
+            videoElement.load();
+        });
+    };
+
     // Función para seleccionar/deseleccionar un archivo
     const toggleFileSelection = (filename) => {
         if (selectedFiles.includes(filename)) {
@@ -60,10 +147,8 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
     const selectAllVisible = () => {
         const visibleFilenames = filteredFiles.map(f => f.name);
         if (selectedFiles.length === visibleFilenames.length) {
-            // Si todos están seleccionados, deseleccionar todos
             setSelectedFiles([]);
         } else {
-            // Seleccionar todos los visibles
             setSelectedFiles(visibleFilenames);
         }
     };
@@ -104,7 +189,7 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
                 
                 Swal.close();
                 showSuccessAlert('Archivo eliminado correctamente');
-                fetchFiles(); // Actualizar la lista después de eliminar
+                fetchFiles();
                 
             } catch (error) {
                 console.error('Error eliminando archivo:', error);
@@ -172,7 +257,6 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
                 
                 if (response.data.success) {
                     showSuccessAlert(`Eliminados ${response.data.data.success.length} de ${selectedFiles.length} archivos`);
-                    // Actualizar la lista
                     fetchFiles();
                 } else {
                     showErrorAlert('Error en la eliminación masiva');
@@ -224,7 +308,7 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
     // Efecto para cargar archivos inicialmente y cuando cambie refreshKey
     useEffect(() => {
         fetchFiles();
-    }, [refreshKey]); // Agregar refreshKey como dependencia
+    }, [refreshKey]);
 
     const formatFileSize = (bytes) => {
         if (!bytes || bytes === 0) return '0 Bytes';
@@ -396,7 +480,6 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
                             key={key}
                             onClick={() => {
                                 setFilter(key);
-                                // Limpiar selección al cambiar filtro
                                 if (isSelecting) {
                                     setSelectedFiles([]);
                                 }
@@ -463,26 +546,95 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
                             )}
                             
                             {/* Preview del archivo */}
-                            <div className="h-32 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                            <div className="h-32 bg-gray-100 flex items-center justify-center overflow-hidden relative group">
                                 {file.type === 'image' ? (
-                                    <img 
-                                        src={file.url} 
-                                        alt={file.originalName || file.name}
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.nextSibling.style.display = 'flex';
-                                        }}
-                                    />
-                                ) : null}
-                                <div className={`text-5xl ${file.type === 'image' ? 'hidden' : 'flex'}`}>
-                                    <i className={`${getTypeIcon(file.type)} ${getTypeColor(file.type)}`}></i>
-                                </div>
+                                    <>
+                                        <img 
+                                            src={file.url} 
+                                            alt={file.originalName || file.name}
+                                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                                            loading="lazy"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                // Mostrar icono si falla la imagen
+                                                const iconContainer = document.createElement('div');
+                                                iconContainer.className = 'flex items-center justify-center h-full w-full';
+                                                iconContainer.innerHTML = `<i class="far fa-file-image text-gray-400 text-4xl"></i>`;
+                                                e.target.parentNode.appendChild(iconContainer);
+                                            }}
+                                        />
+                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 flex items-center justify-center">
+                                            <i className="fas fa-search-plus text-white opacity-0 group-hover:opacity-100 transition duration-200 text-2xl"></i>
+                                        </div>
+                                        <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                                            <i className="fas fa-image mr-1"></i>
+                                            Imagen
+                                        </div>
+                                    </>
+                                ) : file.type === 'video' ? (
+                                    <>
+                                        {videoThumbnails[file.name] ? (
+                                            <>
+                                                <img 
+                                                    src={videoThumbnails[file.name]} 
+                                                    alt={`Thumbnail de ${file.originalName || file.name}`}
+                                                    className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextElementSibling.style.display = 'flex';
+                                                    }}
+                                                />
+                                                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                                                    <i className="fas fa-play-circle text-white text-4xl"></i>
+                                                </div>
+                                                <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                                                    <i className="fas fa-play mr-1"></i>
+                                                    Video
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex flex-col items-center justify-center w-full h-full">
+                                                    <i className="fas fa-video text-gray-400 text-4xl mb-2"></i>
+                                                    <span className="text-xs text-gray-500">Cargando video...</span>
+                                                </div>
+                                                <video
+                                                    ref={el => {
+                                                        if (el && !videoThumbnails[file.name]) {
+                                                            videoRefs.current[file.name] = el;
+                                                            // Esperar un momento antes de intentar cargar
+                                                            setTimeout(() => {
+                                                                if (el && !videoThumbnails[file.name]) {
+                                                                    generateVideoThumbnail(el, file.name);
+                                                                }
+                                                            }, 100);
+                                                        }
+                                                    }}
+                                                    className="hidden"
+                                                    preload="metadata"
+                                                    crossOrigin="anonymous"
+                                                >
+                                                    <source src={file.url} type="video/mp4" />
+                                                    <source src={file.url} type="video/webm" />
+                                                    <source src={file.url} type="video/ogg" />
+                                                </video>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-5xl">
+                                            <i className={`${getTypeIcon(file.type)} ${getTypeColor(file.type)}`}></i>
+                                        </div>
+                                        <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded capitalize">
+                                            {file.type || 'Archivo'}
+                                        </div>
+                                    </>
+                                )}
                                 
                                 {/* Overlay para indicar selección */}
                                 {isSelecting && selectedFiles.includes(file.name) && (
-                                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-blue-500 bg-opacity-30 flex items-center justify-center">
                                         <i className="fas fa-check-circle text-blue-600 text-3xl"></i>
                                     </div>
                                 )}
@@ -513,19 +665,90 @@ const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
                                     </span>
                                 </div>
                                 
-                                {/* Acciones (solo si no estamos en modo selección) */}
+                                {/* Acciones */}
                                 {!isSelecting && (
                                     <div className="flex space-x-2">
-                                        <a 
-                                            href={file.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <i className="fas fa-download mr-1"></i>
-                                            ver
-                                        </a>
+                                        {file.type === 'video' ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    Swal.fire({
+                                                        title: 'Reproducir Video',
+                                                        html: `
+                                                            <div class="text-center">
+                                                                <div class="mb-4">
+                                                                    <p class="text-gray-700 font-medium">${file.originalName || file.name}</p>
+                                                                    <p class="text-sm text-gray-500">${file.sizeFormatted || formatFileSize(file.size)}</p>
+                                                                </div>
+                                                                <video controls autoplay class="w-full max-h-96 rounded-lg shadow-lg">
+                                                                    <source src="${file.url}" type="video/mp4">
+                                                                    <source src="${file.url}" type="video/webm">
+                                                                    <source src="${file.url}" type="video/ogg">
+                                                                    Tu navegador no soporta el elemento de video.
+                                                                </video>
+                                                                <div class="mt-4 flex justify-center space-x-4">
+                                                                    <a href="${file.url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                                                                        <i class="fas fa-download mr-2"></i>
+                                                                        Descargar
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        `,
+                                                        showConfirmButton: false,
+                                                        showCloseButton: true,
+                                                        width: '800px',
+                                                        background: '#f9fafb'
+                                                    });
+                                                }}
+                                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                            >
+                                                <i className="fas fa-play mr-1"></i>
+                                                Reproducir
+                                            </button>
+                                        ) : file.type === 'image' ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    Swal.fire({
+                                                        title: '',
+                                                        html: `
+                                                            <div class="text-center">
+                                                                <div class="mb-4">
+                                                                    <p class="text-gray-700 font-medium">${file.originalName || file.name}</p>
+                                                                    <p class="text-sm text-gray-500">${file.sizeFormatted || formatFileSize(file.size)}</p>
+                                                                </div>
+                                                                <img src="${file.url}" alt="${file.originalName || file.name}" class="w-full max-h-96 object-contain rounded-lg shadow-lg">
+                                                                <div class="mt-4 flex justify-center space-x-4">
+                                                                    <a href="${file.url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                                                                        <i class="fas fa-download mr-2"></i>
+                                                                        Descargar
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        `,
+                                                        showConfirmButton: false,
+                                                        showCloseButton: true,
+                                                        width: '800px',
+                                                        background: '#f9fafb'
+                                                    });
+                                                }}
+                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                            >
+                                                <i className="fas fa-expand mr-1"></i>
+                                                Ampliar
+                                            </button>
+                                        ) : (
+                                            <a 
+                                                href={file.url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <i className="fas fa-download mr-1"></i>
+                                                Descargar
+                                            </a>
+                                        )}
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation();
