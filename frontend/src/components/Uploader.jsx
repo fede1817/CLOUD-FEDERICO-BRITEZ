@@ -1,8 +1,9 @@
+// Uploader.js
 import { useState } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const Uploader = () => {
+const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
     const [files, setFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
 
@@ -50,7 +51,6 @@ const Uploader = () => {
 
         setUploading(true);
         
-        // Mostrar alerta de carga
         Swal.fire({
             title: 'Subiendo archivos...',
             text: `Procesando ${files.length} archivo${files.length !== 1 ? 's' : ''}`,
@@ -72,12 +72,17 @@ const Uploader = () => {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
-                timeout: 60000 // 60 segundos timeout
+                timeout: 60000
             });
             
             setFiles([]);
             Swal.close();
             showSuccessAlert(uploadedCount);
+            
+            // Llamar a la función callback para actualizar la galería
+            if (onUploadSuccess) {
+                onUploadSuccess();
+            }
             
         } catch (error) {
             console.error('Error subiendo archivos:', error);

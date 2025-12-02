@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const FileGallery = () => {
+const FileGallery = ({ refreshKey }) => { // Recibir refreshKey como prop
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
-    const [selectedFiles, setSelectedFiles] = useState([]); // Nuevo estado para archivos seleccionados
-    const [isSelecting, setIsSelecting] = useState(false); // Modo selección
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [isSelecting, setIsSelecting] = useState(false);
 
     const fetchFiles = async () => {
         try {
@@ -104,7 +104,7 @@ const FileGallery = () => {
                 
                 Swal.close();
                 showSuccessAlert('Archivo eliminado correctamente');
-                fetchFiles();
+                fetchFiles(); // Actualizar la lista después de eliminar
                 
             } catch (error) {
                 console.error('Error eliminando archivo:', error);
@@ -221,9 +221,10 @@ const FileGallery = () => {
         });
     };
 
+    // Efecto para cargar archivos inicialmente y cuando cambie refreshKey
     useEffect(() => {
         fetchFiles();
-    }, []);
+    }, [refreshKey]); // Agregar refreshKey como dependencia
 
     const formatFileSize = (bytes) => {
         if (!bytes || bytes === 0) return '0 Bytes';
@@ -523,7 +524,7 @@ const FileGallery = () => {
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <i className="fas fa-download mr-1"></i>
-                                            Descargar
+                                            ver
                                         </a>
                                         <button 
                                             onClick={(e) => {
