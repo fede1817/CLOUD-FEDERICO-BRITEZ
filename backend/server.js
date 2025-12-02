@@ -248,8 +248,6 @@ const getFileIcon = (filename, type) => {
   }
 };
 
-// Rutas de la API (mantenemos las mismas rutas del código anterior)
-
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
@@ -357,10 +355,10 @@ app.get("/api/files", async (req, res) => {
   }
 });
 
-// Subir archivos - ACEPTA CUALQUIER TIPO
+// Subir archivos
 app.post(
   "/api/upload",
-  upload.array("files", 50), // Hasta 50 archivos
+  upload.array("files", 50),
   handleUploadErrors,
   async (req, res) => {
     try {
@@ -410,13 +408,91 @@ app.post(
   }
 );
 
-// Eliminar archivo
+// *** IMPORTANTE: El orden de las rutas DELETE es crucial ***
+// Primero la ruta de eliminación masiva (antes de la individual)
+app.delete("/api/files/batch", async (req, res) => {
+  try {
+    const { filenames } = req.body;
+
+    console.log("📦 Eliminación masiva solicitada para:", filenames);
+
+    // Validar que se proporcionó un array de nombres de archivo
+    if (!Array.isArray(filenames) || filenames.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Debe proporcionar un array de nombres de archivo",
+      });
+    }
+
+    // Validar cada nombre de archivo por seguridad
+    for (const filename of filenames) {
+      if (
+        filename.includes("..") ||
+        filename.includes("/") ||
+        filename.includes("\\")
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: `Nombre de archivo inválido: ${filename}`,
+        });
+      }
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: filenames.length,
+    };
+
+    // Eliminar cada archivo
+    for (const filename of filenames) {
+      try {
+        const filePath = path.join(UPLOAD_PATH, filename);
+
+        // Verificar si el archivo existe
+        if (await fs.pathExists(filePath)) {
+          await fs.unlink(filePath);
+          results.success.push(filename);
+          console.log(`✅ Archivo eliminado: ${filename}`);
+        } else {
+          results.failed.push({
+            filename,
+            reason: "Archivo no encontrado",
+          });
+        }
+      } catch (error) {
+        results.failed.push({
+          filename,
+          reason: error.message,
+        });
+        console.error(`❌ Error eliminando ${filename}:`, error);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Eliminación masiva completada. Éxitos: ${results.success.length}, Fallidos: ${results.failed.length}`,
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error en eliminación masiva:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error eliminando archivos masivamente",
+    });
+  }
+});
+
+// Luego la ruta de eliminación individual
 app.delete("/api/files/:filename", async (req, res) => {
   try {
-    const filename = req.params.filename;
+    const { filename } = req.params;
+
+    console.log("🗑️ Eliminación individual solicitada para:", filename);
 
     // Validar nombre de archivo por seguridad
     if (
+      !filename ||
       filename.includes("..") ||
       filename.includes("/") ||
       filename.includes("\\")
@@ -437,20 +513,22 @@ app.delete("/api/files/:filename", async (req, res) => {
       });
     }
 
+    // Eliminar el archivo
     await fs.unlink(filePath);
-
-    console.log(`🗑️ Archivo eliminado: ${filename}`);
+    console.log(`✅ Archivo eliminado: ${filename}`);
 
     res.json({
       success: true,
-      message: "Archivo eliminado exitosamente",
-      data: { filename },
+      message: "Archivo eliminado correctamente",
+      data: {
+        filename: filename,
+      },
     });
   } catch (error) {
     console.error("Error eliminando archivo:", error);
     res.status(500).json({
       success: false,
-      error: "Error eliminando archivo",
+      error: "Error eliminando el archivo",
     });
   }
 });
@@ -479,4 +557,11 @@ app.listen(PORT, async () => {
   );
   console.log(`✅ TODOS los tipos de archivo permitidos`);
   console.log(`⏰ Iniciado en: ${new Date().toLocaleString()}`);
+  console.log(`🔧 Rutas disponibles:`);
+  console.log(`   GET  /api/health`);
+  console.log(`   GET  /api/info`);
+  console.log(`   GET  /api/files`);
+  console.log(`   POST /api/upload`);
+  console.log(`   DELETE /api/files/batch (eliminación masiva)`);
+  console.log(`   DELETE /api/files/:filename (eliminación individual)`);
 });
