@@ -3,7 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
+const Uploader = ({ onUploadSuccess }) => {
     const [files, setFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
 
@@ -19,7 +19,9 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
             confirmButtonText: 'Aceptar',
             confirmButtonColor: '#3b82f6',
             timer: 3000,
-            timerProgressBar: true
+            timerProgressBar: true,
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
@@ -29,7 +31,9 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
             text: message || 'Error subiendo archivos',
             icon: 'error',
             confirmButtonText: 'Aceptar',
-            confirmButtonColor: '#ef4444'
+            confirmButtonColor: '#ef4444',
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
@@ -39,7 +43,9 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
             text: 'Por favor selecciona al menos un archivo para subir',
             icon: 'warning',
             confirmButtonText: 'Aceptar',
-            confirmButtonColor: '#f59e0b'
+            confirmButtonColor: '#f59e0b',
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
@@ -57,7 +63,9 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
             allowOutsideClick: false,
             didOpen: () => {
                 Swal.showLoading();
-            }
+            },
+            background: '#1f2937',
+            color: '#f9fafb'
         });
 
         const formData = new FormData();
@@ -79,7 +87,6 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
             Swal.close();
             showSuccessAlert(uploadedCount);
             
-            // Llamar a la función callback para actualizar la galería
             if (onUploadSuccess) {
                 onUploadSuccess();
             }
@@ -101,29 +108,29 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                <i className="fas fa-upload mr-2 text-blue-600"></i>
+        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-4">
+                <i className="fas fa-upload mr-2 text-blue-400"></i>
                 Subir Archivos
             </h2>
             
             <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition duration-200">
-                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
-                    <p className="text-gray-600 mb-2">Arrastra tus archivos aquí o haz clic para seleccionar</p>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-blue-500 transition duration-200 bg-gray-900">
+                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-500 mb-2"></i>
+                    <p className="text-gray-300 mb-2">Arrastra tus archivos aquí o haz clic para seleccionar</p>
                     <input 
                         type="file" 
                         multiple 
                         onChange={handleFileChange}
                         disabled={uploading}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-900 file:text-blue-300 hover:file:bg-blue-800 bg-gray-900"
                     />
                 </div>
                 
                 <button 
                     onClick={handleUpload} 
                     disabled={uploading || files.length === 0}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                    className="w-full bg-blue-700 hover:bg-blue-600 disabled:bg-blue-900 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center border border-blue-600 disabled:border-blue-800"
                 >
                     {uploading ? (
                         <>
@@ -139,17 +146,17 @@ const Uploader = ({ onUploadSuccess }) => {  // Agregar prop
                 </button>
                 
                 {files.length > 0 && (
-                    <div className="border-t pt-4">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                            <i className="fas fa-file-alt mr-2 text-green-600"></i>
+                    <div className="border-t border-gray-700 pt-4">
+                        <h3 className="text-lg font-semibold text-gray-200 mb-2">
+                            <i className="fas fa-file-alt mr-2 text-green-400"></i>
                             Archivos seleccionados:
                         </h3>
                         <div className="space-y-2 max-h-40 overflow-y-auto">
                             {files.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                                <div key={index} className="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700">
                                     <div className="flex items-center flex-1">
-                                        <i className="fas fa-file text-gray-400 mr-3"></i>
-                                        <span className="text-sm text-gray-600 truncate">{file.name}</span>
+                                        <i className="fas fa-file text-gray-500 mr-3"></i>
+                                        <span className="text-sm text-gray-300 truncate">{file.name}</span>
                                     </div>
                                     <span className="text-xs text-gray-500 ml-2">
                                         ({(file.size / 1024 / 1024).toFixed(2)} MB)

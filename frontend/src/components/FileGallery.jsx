@@ -17,9 +17,7 @@ const FileGallery = ({ refreshKey }) => {
             console.log('Respuesta del servidor:', response.data);
             const filesData = response.data.data?.files || response.data.files || response.data || [];
             setFiles(Array.isArray(filesData) ? filesData : []);
-            // Limpiar selección al actualizar
             setSelectedFiles([]);
-            // Limpiar thumbnails de videos
             setVideoThumbnails({});
         } catch (error) {
             console.error('Error cargando archivos:', error);
@@ -37,7 +35,9 @@ const FileGallery = ({ refreshKey }) => {
             confirmButtonText: 'Aceptar',
             confirmButtonColor: '#10b981',
             timer: 2000,
-            timerProgressBar: true
+            timerProgressBar: true,
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
@@ -47,32 +47,27 @@ const FileGallery = ({ refreshKey }) => {
             text: message,
             icon: 'error',
             confirmButtonText: 'Aceptar',
-            confirmButtonColor: '#ef4444'
+            confirmButtonColor: '#ef4444',
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
-    // Función mejorada para generar thumbnail de video
     const generateVideoThumbnail = (videoElement, filename) => {
         return new Promise((resolve) => {
-            // Configurar el video
-            videoElement.currentTime = 0; // Empezar desde el inicio
+            videoElement.currentTime = 0;
             videoElement.muted = true;
             videoElement.playsInline = true;
-            videoElement.crossOrigin = "anonymous"; // Importante para videos de otro dominio
+            videoElement.crossOrigin = "anonymous";
             
             const handleCanPlay = () => {
-                // Esperar a que el video tenga datos suficientes
-                if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
-                    // Crear canvas para capturar el frame
+                if (videoElement.readyState >= 2) {
                     const canvas = document.createElement('canvas');
-                    
-                    // Limitar el tamaño máximo para no sobrecargar
                     const maxWidth = 400;
                     const maxHeight = 300;
                     let width = videoElement.videoWidth;
                     let height = videoElement.videoHeight;
                     
-                    // Mantener proporción
                     if (width > maxWidth) {
                         height = (height * maxWidth) / width;
                         width = maxWidth;
@@ -88,8 +83,6 @@ const FileGallery = ({ refreshKey }) => {
                     const ctx = canvas.getContext('2d');
                     try {
                         ctx.drawImage(videoElement, 0, 0, width, height);
-                        
-                        // Convertir a data URL con calidad media
                         const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
                         
                         setVideoThumbnails(prev => ({
@@ -103,7 +96,6 @@ const FileGallery = ({ refreshKey }) => {
                         resolve(null);
                     }
                     
-                    // Limpiar event listeners
                     videoElement.removeEventListener('canplay', handleCanPlay);
                     videoElement.removeEventListener('error', handleError);
                 }
@@ -119,7 +111,6 @@ const FileGallery = ({ refreshKey }) => {
             videoElement.addEventListener('canplay', handleCanPlay);
             videoElement.addEventListener('error', handleError);
             
-            // Timeout por si el video tarda demasiado
             setTimeout(() => {
                 if (!videoThumbnails[filename]) {
                     videoElement.removeEventListener('canplay', handleCanPlay);
@@ -127,14 +118,12 @@ const FileGallery = ({ refreshKey }) => {
                     console.warn(`Timeout generando thumbnail para: ${filename}`);
                     resolve(null);
                 }
-            }, 5000); // 5 segundos timeout
+            }, 5000);
             
-            // Intentar cargar el video
             videoElement.load();
         });
     };
 
-    // Función para seleccionar/deseleccionar un archivo
     const toggleFileSelection = (filename) => {
         if (selectedFiles.includes(filename)) {
             setSelectedFiles(selectedFiles.filter(f => f !== filename));
@@ -143,7 +132,6 @@ const FileGallery = ({ refreshKey }) => {
         }
     };
 
-    // Función para seleccionar todos los archivos visibles
     const selectAllVisible = () => {
         const visibleFilenames = filteredFiles.map(f => f.name);
         if (selectedFiles.length === visibleFilenames.length) {
@@ -153,15 +141,14 @@ const FileGallery = ({ refreshKey }) => {
         }
     };
 
-    // Eliminar archivo individual
     const deleteFile = async (filename) => {
         const result = await Swal.fire({
             title: '¿Estás seguro?',
             html: `
                 <div class="text-center">
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-                    <p>Vas a eliminar el archivo: <strong>${filename}</strong></p>
-                    <p class="text-sm text-gray-500 mt-2">Esta acción no se puede deshacer</p>
+                    <p class="text-gray-100">Vas a eliminar el archivo: <strong class="text-white">${filename}</strong></p>
+                    <p class="text-sm text-gray-400 mt-2">Esta acción no se puede deshacer</p>
                 </div>
             `,
             icon: 'warning',
@@ -171,7 +158,9 @@ const FileGallery = ({ refreshKey }) => {
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#6b7280',
             reverseButtons: true,
-            focusCancel: true
+            focusCancel: true,
+            background: '#1f2937',
+            color: '#f9fafb'
         });
 
         if (result.isConfirmed) {
@@ -182,7 +171,9 @@ const FileGallery = ({ refreshKey }) => {
                     allowOutsideClick: false,
                     didOpen: () => {
                         Swal.showLoading();
-                    }
+                    },
+                    background: '#1f2937',
+                    color: '#f9fafb'
                 });
 
                 await axios.delete(`http://localhost:5000/api/files/${filename}`);
@@ -199,7 +190,6 @@ const FileGallery = ({ refreshKey }) => {
         }
     };
 
-    // Eliminación masiva de archivos
     const deleteSelectedFiles = async () => {
         if (selectedFiles.length === 0) {
             showErrorAlert('No hay archivos seleccionados');
@@ -211,9 +201,9 @@ const FileGallery = ({ refreshKey }) => {
             html: `
                 <div class="text-center">
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-                    <p>Vas a eliminar <strong>${selectedFiles.length} archivo(s)</strong></p>
+                    <p class="text-gray-100">Vas a eliminar <strong class="text-white">${selectedFiles.length} archivo(s)</strong></p>
                     <div class="mt-4 max-h-40 overflow-y-auto">
-                        <ul class="text-left text-sm">
+                        <ul class="text-left text-sm text-gray-300">
                             ${selectedFiles.slice(0, 10).map(file => 
                                 `<li class="truncate">• ${file}</li>`
                             ).join('')}
@@ -223,7 +213,7 @@ const FileGallery = ({ refreshKey }) => {
                             }
                         </ul>
                     </div>
-                    <p class="text-sm text-red-500 mt-4 font-bold">⚠️ Esta acción no se puede deshacer</p>
+                    <p class="text-sm text-red-400 mt-4 font-bold">⚠️ Esta acción no se puede deshacer</p>
                 </div>
             `,
             icon: 'warning',
@@ -234,7 +224,9 @@ const FileGallery = ({ refreshKey }) => {
             cancelButtonColor: '#6b7280',
             reverseButtons: true,
             focusCancel: true,
-            width: '500px'
+            width: '500px',
+            background: '#1f2937',
+            color: '#f9fafb'
         });
 
         if (result.isConfirmed) {
@@ -242,11 +234,13 @@ const FileGallery = ({ refreshKey }) => {
                 Swal.fire({
                     title: 'Eliminando...',
                     html: `Eliminando ${selectedFiles.length} archivo(s)<br/>
-                           <small>Esto puede tomar unos momentos</small>`,
+                           <small class="text-gray-400">Esto puede tomar unos momentos</small>`,
                     allowOutsideClick: false,
                     didOpen: () => {
                         Swal.showLoading();
-                    }
+                    },
+                    background: '#1f2937',
+                    color: '#f9fafb'
                 });
 
                 const response = await axios.delete('http://localhost:5000/api/files/batch', {
@@ -270,42 +264,42 @@ const FileGallery = ({ refreshKey }) => {
         }
     };
 
-    // Mostrar información del archivo
     const showFileInfo = (file) => {
         Swal.fire({
             title: 'Información del Archivo',
             html: `
                 <div class="text-left">
                     <div class="mb-3">
-                        <label class="font-semibold text-gray-700">Nombre:</label>
-                        <p class="text-gray-600 break-all">${file.originalName || file.name}</p>
+                        <label class="font-semibold text-gray-300">Nombre:</label>
+                        <p class="text-gray-400 break-all">${file.originalName || file.name}</p>
                     </div>
                     <div class="mb-3">
-                        <label class="font-semibold text-gray-700">Tamaño:</label>
-                        <p class="text-gray-600">${file.sizeFormatted || formatFileSize(file.size)}</p>
+                        <label class="font-semibold text-gray-300">Tamaño:</label>
+                        <p class="text-gray-400">${file.sizeFormatted || formatFileSize(file.size)}</p>
                     </div>
                     <div class="mb-3">
-                        <label class="font-semibold text-gray-700">Tipo:</label>
-                        <p class="text-gray-600 capitalize">${file.type || 'Desconocido'}</p>
+                        <label class="font-semibold text-gray-300">Tipo:</label>
+                        <p class="text-gray-400 capitalize">${file.type || 'Desconocido'}</p>
                     </div>
                     <div class="mb-3">
-                        <label class="font-semibold text-gray-700">Extensión:</label>
-                        <p class="text-gray-600">${file.extension || 'Ninguna'}</p>
+                        <label class="font-semibold text-gray-300">Extensión:</label>
+                        <p class="text-gray-400">${file.extension || 'Ninguna'}</p>
                     </div>
                     <div class="mb-3">
-                        <label class="font-semibold text-gray-700">Fecha de subida:</label>
-                        <p class="text-gray-600">${new Date(file.uploadDate).toLocaleString()}</p>
+                        <label class="font-semibold text-gray-300">Fecha de subida:</label>
+                        <p class="text-gray-400">${new Date(file.uploadDate).toLocaleString()}</p>
                     </div>
                 </div>
             `,
             icon: 'info',
             confirmButtonText: 'Cerrar',
             confirmButtonColor: '#3b82f6',
-            width: '500px'
+            width: '500px',
+            background: '#1f2937',
+            color: '#f9fafb'
         });
     };
 
-    // Efecto para cargar archivos inicialmente y cuando cambie refreshKey
     useEffect(() => {
         fetchFiles();
     }, [refreshKey]);
@@ -322,7 +316,6 @@ const FileGallery = ({ refreshKey }) => {
         ? files 
         : files.filter(file => file.type === filter);
 
-    // Calcular conteos de archivos por tipo
     const fileTypeCounts = {
         all: files.length,
         image: files.filter(f => f.type === 'image').length,
@@ -353,39 +346,39 @@ const FileGallery = ({ refreshKey }) => {
     };
 
     const getTypeColor = (type) => {
-        if (!type) return 'text-gray-400';
+        if (!type) return 'text-gray-500';
         
         switch (type) {
-            case 'image': return 'text-green-500';
-            case 'video': return 'text-red-500';
-            case 'audio': return 'text-purple-500';
-            case 'document': return 'text-blue-500';
-            case 'archive': return 'text-yellow-500';
-            case 'code': return 'text-indigo-500';
-            case 'executable': return 'text-gray-500';
-            case 'font': return 'text-pink-500';
-            case 'database': return 'text-teal-500';
-            default: return 'text-gray-400';
+            case 'image': return 'text-green-400';
+            case 'video': return 'text-red-400';
+            case 'audio': return 'text-purple-400';
+            case 'document': return 'text-blue-400';
+            case 'archive': return 'text-yellow-400';
+            case 'code': return 'text-indigo-400';
+            case 'executable': return 'text-gray-400';
+            case 'font': return 'text-pink-400';
+            case 'database': return 'text-teal-400';
+            default: return 'text-gray-500';
         }
     };
 
     if (loading) {
         return (
             <div className="flex justify-center items-center py-12">
-                <i className="fas fa-spinner fa-spin text-4xl text-blue-600"></i>
-                <span className="ml-3 text-gray-600">Cargando archivos...</span>
+                <i className="fas fa-spinner fa-spin text-4xl text-blue-400"></i>
+                <span className="ml-3 text-gray-300">Cargando archivos...</span>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
             {/* Encabezado con botones */}
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                    <i className="fas fa-folder-open mr-2 text-blue-600"></i>
+                <h2 className="text-2xl font-bold text-white">
+                    <i className="fas fa-folder-open mr-2 text-blue-400"></i>
                     Archivos Subidos
-                    <span className="ml-2 bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded">
+                    <span className="ml-2 bg-blue-900 text-blue-300 text-sm font-medium px-2.5 py-0.5 rounded">
                         {files.length}
                     </span>
                 </h2>
@@ -396,7 +389,7 @@ const FileGallery = ({ refreshKey }) => {
                         <>
                             <button 
                                 onClick={selectAllVisible}
-                                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center"
+                                className="bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center border border-gray-600"
                             >
                                 <i className={`fas fa-${selectedFiles.length === filteredFiles.length ? 'minus' : 'check'}-square mr-2`}></i>
                                 {selectedFiles.length === filteredFiles.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
@@ -405,7 +398,7 @@ const FileGallery = ({ refreshKey }) => {
                             {selectedFiles.length > 0 && (
                                 <button 
                                     onClick={deleteSelectedFiles}
-                                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center"
+                                    className="bg-red-700 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center border border-red-600"
                                 >
                                     <i className="fas fa-trash mr-2"></i>
                                     Eliminar ({selectedFiles.length})
@@ -417,7 +410,7 @@ const FileGallery = ({ refreshKey }) => {
                                     setIsSelecting(false);
                                     setSelectedFiles([]);
                                 }}
-                                className="bg-gray-400 hover:bg-gray-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center"
+                                className="bg-gray-600 hover:bg-gray-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center border border-gray-500"
                             >
                                 <i className="fas fa-times mr-2"></i>
                                 Cancelar
@@ -427,7 +420,7 @@ const FileGallery = ({ refreshKey }) => {
                         <>
                             <button 
                                 onClick={() => setIsSelecting(true)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center"
+                                className="bg-blue-700 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center border border-blue-600"
                             >
                                 <i className="fas fa-check-square mr-2"></i>
                                 Seleccionar múltiple
@@ -435,7 +428,7 @@ const FileGallery = ({ refreshKey }) => {
                             
                             <button 
                                 onClick={fetchFiles}
-                                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center"
+                                className="bg-green-700 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center border border-green-600"
                             >
                                 <i className="fas fa-sync-alt mr-2"></i>
                                 Actualizar
@@ -447,15 +440,15 @@ const FileGallery = ({ refreshKey }) => {
 
             {/* Indicador de selección */}
             {isSelecting && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-4 p-3 bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                            <i className="fas fa-check-circle text-blue-600 mr-2"></i>
-                            <span className="text-blue-800 font-medium">
+                            <i className="fas fa-check-circle text-blue-400 mr-2"></i>
+                            <span className="text-blue-300 font-medium">
                                 {selectedFiles.length} archivo(s) seleccionado(s)
                             </span>
                         </div>
-                        <div className="text-sm text-blue-600">
+                        <div className="text-sm text-blue-400">
                             Haz clic en los archivos para seleccionar/deseleccionar
                         </div>
                     </div>
@@ -484,15 +477,15 @@ const FileGallery = ({ refreshKey }) => {
                                     setSelectedFiles([]);
                                 }
                             }}
-                            className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition duration-200 ${
+                            className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition duration-200 border ${
                                 filter === key
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-blue-700 text-white border-blue-600'
+                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-gray-600'
                             }`}
                         >
                             <i className={`${icon} mr-2`}></i>
                             {label}
-                            <span className="ml-2 bg-black bg-opacity-20 px-1.5 py-0.5 rounded text-xs">
+                            <span className="ml-2 bg-gray-900 bg-opacity-50 px-1.5 py-0.5 rounded text-xs">
                                 {fileTypeCounts[key] || 0}
                             </span>
                         </button>
@@ -502,14 +495,14 @@ const FileGallery = ({ refreshKey }) => {
             
             {filteredFiles.length === 0 ? (
                 <div className="text-center py-12">
-                    <i className="fas fa-folder-open text-6xl text-gray-400 mb-4"></i>
-                    <p className="text-gray-500 text-lg">
+                    <i className="fas fa-folder-open text-6xl text-gray-600 mb-4"></i>
+                    <p className="text-gray-400 text-lg">
                         {filter === 'all' 
                             ? 'No hay archivos subidos aún.' 
                             : `No hay archivos de tipo ${filter}`
                         }
                     </p>
-                    <p className="text-gray-400">
+                    <p className="text-gray-500">
                         {filter === 'all' 
                             ? 'Sube algunos archivos usando el formulario de arriba.' 
                             : 'Cambia el filtro o sube archivos de este tipo.'
@@ -521,10 +514,10 @@ const FileGallery = ({ refreshKey }) => {
                     {filteredFiles.map((file, index) => (
                         <div 
                             key={index} 
-                            className={`border rounded-lg overflow-hidden hover:shadow-lg transition duration-200 relative ${
+                            className={`border rounded-lg overflow-hidden hover:shadow-xl transition duration-200 relative ${
                                 isSelecting && selectedFiles.includes(file.name)
-                                    ? 'border-blue-500 border-2 bg-blue-50'
-                                    : 'border-gray-200'
+                                    ? 'border-blue-500 border-2 bg-blue-900 bg-opacity-30'
+                                    : 'border-gray-700 bg-gray-800'
                             }`}
                             onClick={() => {
                                 if (isSelecting) {
@@ -538,7 +531,7 @@ const FileGallery = ({ refreshKey }) => {
                                     <div className={`w-6 h-6 rounded flex items-center justify-center ${
                                         selectedFiles.includes(file.name)
                                             ? 'bg-blue-600 text-white'
-                                            : 'bg-white text-gray-400 border border-gray-300'
+                                            : 'bg-gray-700 text-gray-400 border border-gray-600'
                                     }`}>
                                         <i className={`fas fa-${selectedFiles.includes(file.name) ? 'check' : 'plus'} text-xs`}></i>
                                     </div>
@@ -546,7 +539,7 @@ const FileGallery = ({ refreshKey }) => {
                             )}
                             
                             {/* Preview del archivo */}
-                            <div className="h-32 bg-gray-100 flex items-center justify-center overflow-hidden relative group">
+                            <div className="h-32 bg-gray-900 flex items-center justify-center overflow-hidden relative group">
                                 {file.type === 'image' ? (
                                     <>
                                         <img 
@@ -556,14 +549,13 @@ const FileGallery = ({ refreshKey }) => {
                                             loading="lazy"
                                             onError={(e) => {
                                                 e.target.style.display = 'none';
-                                                // Mostrar icono si falla la imagen
                                                 const iconContainer = document.createElement('div');
                                                 iconContainer.className = 'flex items-center justify-center h-full w-full';
-                                                iconContainer.innerHTML = `<i class="far fa-file-image text-gray-400 text-4xl"></i>`;
+                                                iconContainer.innerHTML = `<i class="far fa-file-image text-gray-600 text-4xl"></i>`;
                                                 e.target.parentNode.appendChild(iconContainer);
                                             }}
                                         />
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-200 flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition duration-200 flex items-center justify-center">
                                             <i className="fas fa-search-plus text-white opacity-0 group-hover:opacity-100 transition duration-200 text-2xl"></i>
                                         </div>
                                         <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
@@ -595,14 +587,13 @@ const FileGallery = ({ refreshKey }) => {
                                         ) : (
                                             <>
                                                 <div className="flex flex-col items-center justify-center w-full h-full">
-                                                    <i className="fas fa-video text-gray-400 text-4xl mb-2"></i>
+                                                    <i className="fas fa-video text-gray-600 text-4xl mb-2"></i>
                                                     <span className="text-xs text-gray-500">Cargando video...</span>
                                                 </div>
                                                 <video
                                                     ref={el => {
                                                         if (el && !videoThumbnails[file.name]) {
                                                             videoRefs.current[file.name] = el;
-                                                            // Esperar un momento antes de intentar cargar
                                                             setTimeout(() => {
                                                                 if (el && !videoThumbnails[file.name]) {
                                                                     generateVideoThumbnail(el, file.name);
@@ -635,7 +626,7 @@ const FileGallery = ({ refreshKey }) => {
                                 {/* Overlay para indicar selección */}
                                 {isSelecting && selectedFiles.includes(file.name) && (
                                     <div className="absolute inset-0 bg-blue-500 bg-opacity-30 flex items-center justify-center">
-                                        <i className="fas fa-check-circle text-blue-600 text-3xl"></i>
+                                        <i className="fas fa-check-circle text-blue-400 text-3xl"></i>
                                     </div>
                                 )}
                             </div>
@@ -643,7 +634,7 @@ const FileGallery = ({ refreshKey }) => {
                             {/* Información del archivo */}
                             <div className="p-3">
                                 <p 
-                                    className="text-sm font-medium text-gray-800 truncate mb-1 cursor-pointer hover:text-blue-600" 
+                                    className="text-sm font-medium text-gray-100 truncate mb-1 cursor-pointer hover:text-blue-400" 
                                     title={file.originalName || file.name}
                                     onClick={(e) => {
                                         if (!isSelecting) {
@@ -654,7 +645,7 @@ const FileGallery = ({ refreshKey }) => {
                                 >
                                     {file.originalName || file.name}
                                 </p>
-                                <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                <div className="flex justify-between items-center text-xs text-gray-400 mb-2">
                                     <span>
                                         <i className="fas fa-hdd mr-1"></i>
                                         {file.sizeFormatted || formatFileSize(file.size)}
@@ -677,8 +668,8 @@ const FileGallery = ({ refreshKey }) => {
                                                         html: `
                                                             <div class="text-center">
                                                                 <div class="mb-4">
-                                                                    <p class="text-gray-700 font-medium">${file.originalName || file.name}</p>
-                                                                    <p class="text-sm text-gray-500">${file.sizeFormatted || formatFileSize(file.size)}</p>
+                                                                    <p class="text-gray-100 font-medium">${file.originalName || file.name}</p>
+                                                                    <p class="text-sm text-gray-400">${file.sizeFormatted || formatFileSize(file.size)}</p>
                                                                 </div>
                                                                 <video controls autoplay class="w-full max-h-96 rounded-lg shadow-lg">
                                                                     <source src="${file.url}" type="video/mp4">
@@ -687,7 +678,7 @@ const FileGallery = ({ refreshKey }) => {
                                                                     Tu navegador no soporta el elemento de video.
                                                                 </video>
                                                                 <div class="mt-4 flex justify-center space-x-4">
-                                                                    <a href="${file.url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                                                                    <a href="${file.url}" target="_blank" class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
                                                                         <i class="fas fa-download mr-2"></i>
                                                                         Descargar
                                                                     </a>
@@ -697,10 +688,11 @@ const FileGallery = ({ refreshKey }) => {
                                                         showConfirmButton: false,
                                                         showCloseButton: true,
                                                         width: '800px',
-                                                        background: '#f9fafb'
+                                                        background: '#1f2937',
+                                                        color: '#f9fafb'
                                                     });
                                                 }}
-                                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                                className="flex-1 bg-purple-700 hover:bg-purple-600 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center border border-purple-600"
                                             >
                                                 <i className="fas fa-play mr-1"></i>
                                                 Reproducir
@@ -714,12 +706,12 @@ const FileGallery = ({ refreshKey }) => {
                                                         html: `
                                                             <div class="text-center">
                                                                 <div class="mb-4">
-                                                                    <p class="text-gray-700 font-medium">${file.originalName || file.name}</p>
-                                                                    <p class="text-sm text-gray-500">${file.sizeFormatted || formatFileSize(file.size)}</p>
+                                                                    <p class="text-gray-100 font-medium">${file.originalName || file.name}</p>
+                                                                    <p class="text-sm text-gray-400">${file.sizeFormatted || formatFileSize(file.size)}</p>
                                                                 </div>
                                                                 <img src="${file.url}" alt="${file.originalName || file.name}" class="w-full max-h-96 object-contain rounded-lg shadow-lg">
                                                                 <div class="mt-4 flex justify-center space-x-4">
-                                                                    <a href="${file.url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                                                                    <a href="${file.url}" target="_blank" class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
                                                                         <i class="fas fa-download mr-2"></i>
                                                                         Descargar
                                                                     </a>
@@ -729,10 +721,11 @@ const FileGallery = ({ refreshKey }) => {
                                                         showConfirmButton: false,
                                                         showCloseButton: true,
                                                         width: '800px',
-                                                        background: '#f9fafb'
+                                                        background: '#1f2937',
+                                                        color: '#f9fafb'
                                                     });
                                                 }}
-                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                                className="flex-1 bg-green-700 hover:bg-green-600 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center border border-green-600"
                                             >
                                                 <i className="fas fa-expand mr-1"></i>
                                                 Ampliar
@@ -742,7 +735,7 @@ const FileGallery = ({ refreshKey }) => {
                                                 href={file.url} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
-                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                                className="flex-1 bg-blue-700 hover:bg-blue-600 text-white text-center py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center border border-blue-600"
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 <i className="fas fa-download mr-1"></i>
@@ -754,7 +747,7 @@ const FileGallery = ({ refreshKey }) => {
                                                 e.stopPropagation();
                                                 deleteFile(file.name);
                                             }}
-                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center"
+                                            className="flex-1 bg-red-700 hover:bg-red-600 text-white py-1 px-2 rounded text-sm transition duration-200 flex items-center justify-center border border-red-600"
                                         >
                                             <i className="fas fa-trash mr-1"></i>
                                             Eliminar
